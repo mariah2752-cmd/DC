@@ -1,23 +1,4 @@
 import sqlite3
-        program.record_attendance(student_id, 2, "Staff Instructor")
-        program.record_attendance(student_id, 3, "Staff Instructor")
-        program.record_attendance(student_id, 4, "Staff Instructor")
-        program.record_attendance(student_id, 5, "Staff Instructor")
-        program.record_attendance(student_id, 6, "Staff Instructor")
-        program.record_attendance(student_id, 7, "Staff Instructor")
-        program.record_attendance(student_id, 8, "Staff Instructor")
-        program.record_attendance(student_id, 9, "Staff Instructor")
-        program.record_attendance(student_id, 10, "Staff Instructor")
-        program.record_attendance(student_id, 11, "Staff Instructor")
-        program.record_attendance(student_id, 12, "Staff Instructor")
-        program.mark_as_graduated(student_id)
-        print("✓ Staff can mark students as graduated")
-    except PermissionError as e:
-        print(f"✗ Staff permission error marking as graduated: {e}")
-    except Exception as e:
-        print(f"✗ Error in graduation marking: {e}")
-    
-    program.logout_user()
     
     # Admin should also be able to mark as graduated
     program.authenticate_user("admin_user", "admin123")
