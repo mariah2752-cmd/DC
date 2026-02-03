@@ -44,14 +44,16 @@ class Church12StepProgram:
         self.db_path = db_path
         self.init_database()
         self.current_user = None  # Track current authenticated user
-    
+
     def init_database(self):
         """Initialize the database with required tables"""
         conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        
+        # Set up date handling for Python 3.12+ compatibility
+        conn.execute("PRAGMA foreign_keys = ON")
         
         # Create students table with archived fields
-        cursor.execute('''
+        conn.execute('''
             CREATE TABLE IF NOT EXISTS students (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
@@ -65,7 +67,7 @@ class Church12StepProgram:
         ''')
         
         # Create attendance table
-        cursor.execute('''
+        conn.execute('''
             CREATE TABLE IF NOT EXISTS attendance (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 student_id INTEGER NOT NULL,
@@ -77,7 +79,7 @@ class Church12StepProgram:
         ''')
         
         # Create users table
-        cursor.execute('''
+        conn.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
@@ -90,21 +92,21 @@ class Church12StepProgram:
         
         conn.commit()
         conn.close()
-    
+
     def hash_password(self, password: str) -> str:
         """Hash a password using SHA-256 with salt"""
         salt = secrets.token_hex(16)
         password_with_salt = password + salt
         password_hash = hashlib.sha256(password_with_salt.encode()).hexdigest()
         return f"{salt}:{password_hash}"
-    
+
     def verify_password(self, password: str, stored_hash: str) -> bool:
         """Verify a password against stored hash"""
         salt, password_hash = stored_hash.split(':')
         password_with_salt = password + salt
         computed_hash = hashlib.sha256(password_with_salt.encode()).hexdigest()
         return computed_hash == password_hash
-    
+
     def create_user(self, username: str, password: str, role: str = "staff") -> bool:
         """Create a new user account"""
         if role not in ['admin', 'staff', 'viewer']:
@@ -126,7 +128,7 @@ class Church12StepProgram:
         except sqlite3.IntegrityError:
             conn.close()
             return False  # Username already exists
-    
+
     def authenticate_user(self, username: str, password: str) -> Optional[User]:
         """Authenticate a user and return User object if successful"""
         conn = sqlite3.connect(self.db_path)
@@ -157,15 +159,15 @@ class Church12StepProgram:
             self.current_user = user
             return user
         return None
-    
+
     def logout_user(self):
         """Logout current user"""
         self.current_user = None
-    
+
     def get_current_user(self) -> Optional[User]:
         """Get the currently authenticated user"""
         return self.current_user
-    
+
     def add_student(self, name: str, phone: str = "", email: str = "") -> int:
         """Add a new student to the program"""
         # Check permissions
@@ -184,7 +186,7 @@ class Church12StepProgram:
         conn.commit()
         conn.close()
         return student_id
-    
+
     def record_attendance(self, student_id: int, step_number: int, instructor: str) -> int:
         """Record attendance for a student"""
         # Check permissions
@@ -203,7 +205,7 @@ class Church12StepProgram:
         conn.commit()
         conn.close()
         return attendance_id
-    
+
     def get_student_attendance(self, student_id: int) -> List[AttendanceRecord]:
         """Get all attendance records for a student"""
         conn = sqlite3.connect(self.db_path)
@@ -222,7 +224,7 @@ class Church12StepProgram:
         
         conn.close()
         return records
-    
+
     def get_student_info(self, student_id: int) -> Optional[Student]:
         """Get student information"""
         conn = sqlite3.connect(self.db_path)
@@ -240,7 +242,7 @@ class Church12StepProgram:
         if row:
             return Student(*row)
         return None
-    
+
     def get_all_students(self, include_archived: bool = True) -> List[Student]:
         """Get all students in the program"""
         conn = sqlite3.connect(self.db_path)
@@ -264,15 +266,15 @@ class Church12StepProgram:
         
         conn.close()
         return students
-    
+
     def get_active_students(self) -> List[Student]:
         """Get only active (non-archived) students"""
         return self.get_all_students(include_archived=False)
-    
+
     def get_archived_students(self) -> List[Student]:
         """Get only archived students"""
         return self.get_all_students(include_archived=True)
-    
+
     def check_graduation_eligibility(self, student_id: int) -> bool:
         """
         Check if student is eligible for graduation:
@@ -307,7 +309,7 @@ class Church12StepProgram:
         if result and result[0] >= 12:
             return True
         return False
-    
+
     def get_eligible_for_graduation(self) -> List[Student]:
         """Get all students eligible for graduation"""
         students = self.get_active_students()
@@ -318,7 +320,7 @@ class Church12StepProgram:
                 eligible_students.append(student)
         
         return eligible_students
-    
+
     def mark_as_graduated(self, student_id: int):
         """Mark a student as graduated"""
         # Check permissions
@@ -336,7 +338,7 @@ class Church12StepProgram:
         
         conn.commit()
         conn.close()
-    
+
     def archive_student(self, student_id: int) -> bool:
         """
         Archive a student (move to archive status)
@@ -365,7 +367,7 @@ class Church12StepProgram:
         conn.commit()
         conn.close()
         return True
-    
+
     def unarchive_student(self, student_id: int) -> bool:
         """
         Unarchive a student (restore to active status)
@@ -393,7 +395,7 @@ class Church12StepProgram:
         conn.commit()
         conn.close()
         return True
-    
+
     def get_attendance_summary(self) -> dict:
         """Get attendance summary statistics"""
         conn = sqlite3.connect(self.db_path)
@@ -449,7 +451,7 @@ class Church12StepProgram:
             'students_with_attendance': students_with_attendance,
             'students_eligible_for_graduation': len(eligible_students)
         }
-    
+
     def get_detailed_attendance_report(self, start_date: datetime.date = None, 
                                      end_date: datetime.date = None, 
                                      include_archived: bool = True) -> List[Dict[str, Any]]:
@@ -499,7 +501,7 @@ class Church12StepProgram:
             })
         
         return report_data
-    
+
     def get_student_progress_report(self, start_date: datetime.date = None, 
                                   end_date: datetime.date = None,
                                   include_archived: bool = True) -> List[Dict[str, Any]]:
@@ -552,7 +554,7 @@ class Church12StepProgram:
             })
         
         return report_data
-    
+
     def get_instructor_report(self, start_date: datetime.date = None, 
                             end_date: datetime.date = None,
                             include_archived: bool = True) -> List[Dict[str, Any]]:
@@ -598,7 +600,7 @@ class Church12StepProgram:
             })
         
         return report_data
-    
+
     def get_graduation_eligibility_report(self, include_archived: bool = True) -> List[Dict[str, Any]]:
         """Generate report of students eligible for graduation"""
         conn = sqlite3.connect(self.db_path)
@@ -647,7 +649,7 @@ class Church12StepProgram:
             })
         
         return report_data
-    
+
     # Export methods
     def export_to_csv(self, report_type: str, filename: str = None, 
                      start_date: datetime.date = None, end_date: datetime.date = None,
@@ -682,7 +684,7 @@ class Church12StepProgram:
                 writer.writerows(data)
         
         return filename
-    
+
     def export_to_json(self, report_type: str, filename: str = None,
                       start_date: datetime.date = None, end_date: datetime.date = None,
                       include_archived: bool = True) -> str:
@@ -712,7 +714,7 @@ class Church12StepProgram:
             json.dump(data, jsonfile, indent=2, default=str)
         
         return filename
-    
+
     def export_to_excel(self, report_type: str, filename: str = None,
                        start_date: datetime.date = None, end_date: datetime.date = None,
                        include_archived: bool = True) -> str:
@@ -747,7 +749,7 @@ class Church12StepProgram:
             df.to_excel(filename, index=False)
         
         return filename
-    
+
     def get_report_summary(self) -> Dict[str, Any]:
         """Get a summary of all reports"""
         # Check permissions for reports
@@ -765,7 +767,7 @@ class Church12StepProgram:
             ]
         }
         return summary
-    
+
     def get_student_history(self, student_id: int) -> Dict[str, Any]:
         """Get complete history for a student including archived status"""
         conn = sqlite3.connect(self.db_path)
@@ -795,7 +797,7 @@ class Church12StepProgram:
             'last_attendance': max([a.date for a in attendance]) if attendance else None,
             'first_attendance': min([a.date for a in attendance]) if attendance else None
         }
-    
+
     def find_students_to_archive(self, months_inactive: int = 24) -> List[Student]:
         """
         Find students who haven't attended any sessions in the specified number of months
@@ -833,7 +835,7 @@ class Church12StepProgram:
             students.append(Student(*row))
         
         return students
-    
+
     def auto_archive_inactive_students(self, months_inactive: int = 24) -> Dict[str, Any]:
         """
         Automatically archive students who haven't attended sessions in the specified period
@@ -865,7 +867,7 @@ class Church12StepProgram:
             'skipped': skipped_count,
             'archived_at': datetime.datetime.now().isoformat()
         }
-    
+
     def get_auto_archive_report(self, months_inactive: int = 24) -> Dict[str, Any]:
         """
         Generate a report of students who would be auto-archived
@@ -917,7 +919,7 @@ class Church12StepProgram:
             'students_to_archive': len(student_info_list),
             'students_info': student_info_list
         }
-    
+
     def _check_permission(self, permission: str) -> bool:
         """Check if current user has the required permission"""
         if not self.current_user:
@@ -935,7 +937,7 @@ class Church12StepProgram:
         
         # If user role has the permission, allow access
         return permission in permissions.get(user_role, [])
-    
+
     def get_users(self) -> List[User]:
         """Get all users (Admin only)"""
         if not self.current_user or self.current_user.role != 'admin':
@@ -956,7 +958,7 @@ class Church12StepProgram:
         
         conn.close()
         return users
-    
+
     def delete_user(self, user_id: int) -> bool:
         """Delete a user (Admin only)"""
         if not self.current_user or self.current_user.role != 'admin':
@@ -1144,47 +1146,4 @@ def demo_access_control():
     # Admin should also be able to mark as graduated
     program.authenticate_user("admin_user", "admin123")
     try:
-        student_id = program.add_student("Admin Graduation Test", "555-8888", "admingrad@example.com")
-        program.record_attendance(student_id, 1, "Admin Instructor")
-        program.record_attendance(student_id, 2, "Admin Instructor")
-        program.mark_as_graduated(student_id)
-        print("✓ Admin can mark students as graduated")
-    except PermissionError as e:
-        print(f"✗ Admin permission error marking as graduated: {e}")
-    except Exception as e:
-        print(f"✗ Error in admin graduation marking: {e}")
-    
-    print("\n6. Access control demonstration complete!")
-
-def demo_user_management():
-    """Demonstrate user management features"""
-    program = Church12StepProgram()
-    
-    print("\n=== User Management Demo ===\n")
-    
-    # Create admin user if needed
-    if not program.authenticate_user("admin_user", "admin123"):
-        program.create_user("admin_user", "admin123", "admin")
-    
-    # Login as admin
-    program.authenticate_user("admin_user", "admin123")
-    
-    # Show current users
-    users = program.get_users()
-    print("Current Users:")
-    for user in users:
-        print(f"  {user.username} ({user.role}) - Created: {user.created_date}")
-    
-    # Add new user
-    new_user_created = program.create_user("new_staff", "password123", "staff")
-    print(f"\nCreated new staff user: {new_user_created}")
-    
-    # Show updated users
-    users = program.get_users()
-    print("\nUpdated Users:")
-    for user in users:
-        print(f"  {user.username} ({user.role}) - Created: {user.created_date}")
-
-if __name__ == "__main__":
-    demo_access_control()
-    demo_user_management()
+        student_id = program.add_student("Admin Graduation Test", "555-8888", "admingrad
